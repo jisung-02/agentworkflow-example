@@ -14,7 +14,7 @@ triggers:
 states:
   draft_spec:
     kind: task
-    runner: codex
+    runner: codex-review
     instructions: instructions/draft-spec.md
     output: specification
     outcomes: [completed, blocked]

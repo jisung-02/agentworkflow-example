@@ -19,7 +19,7 @@ flowchart TD
     D --> E[완료 알림]
 ```
 
-`slack-dev-cycle`은 Codex CLI로 명세·구현·문서화를 수행합니다. 독립 검토와 QA는 `codex-review` runner가 읽기 전용 sandbox에서 수행합니다. 그래프의 두 검토 branch는 독립 토큰과 worktree를 갖지만, 현재 기본 worker는 이를 순서대로 실행합니다. 사람의 승인과 장애 처리에는 Slack 응답이 필요합니다. 명세와 구현의 재시도 횟수는 YAML의 `max_visits`로 제한합니다.
+`slack-dev-cycle`은 Codex CLI로 구현·문서화를 수행합니다. 승인 전 명세 작성, 독립 검토, QA는 `codex-review` runner가 읽기 전용 sandbox에서 수행합니다. 그래프의 두 검토 branch는 독립 토큰과 worktree를 갖지만, 현재 기본 worker는 이를 순서대로 실행합니다. 사람의 승인과 장애 처리에는 Slack 응답이 필요합니다. 명세와 구현의 재시도 횟수는 YAML의 `max_visits`로 제한합니다.
 
 병렬 검토 worktree는 대상 저장소의 커밋된 `HEAD`에서 만들어집니다. 대상 저장소에 있던 미커밋 변경은 이 두 branch에 복사되지 않습니다. 구현과 QA는 대상 프로젝트의 작업 디렉터리를 사용합니다.
 
@@ -51,7 +51,8 @@ Slack 앱에 `/agentflow` slash command를 만들고 Request URL을 공개 HTTPS
 ```bash
 cp .env.example .env
 chmod 600 .env
-# .env를 열어 프로젝트 경로, Slack 사용자 ID, Signing Secret, Bot Token을 채우세요.
+# .env를 열어 예제 저장소와 다른 대상 프로젝트 경로, Slack 사용자 ID,
+# Signing Secret, Bot Token을 채우세요.
 ```
 
 첫 터미널에서 `./scripts/serve.sh http`, 두 번째 터미널에서 `./scripts/serve.sh worker`를 실행합니다. `http`는 서명과 허용 사용자를 확인해 명령을 접수하고, `worker`는 SQLite에서 작업을 진행하고 대기·완료 알림을 보냅니다. 두 프로세스는 기본적으로 대상 프로젝트의 `.workflow/state.db`를 공유합니다. 다른 경로를 쓰려면 양쪽에 같은 `WORKFLOW_DB`를 설정하세요.
@@ -78,11 +79,10 @@ chmod 600 .env
 
 `status`는 현재 상태와 결과 요약을 보여줍니다. 명세 승인 알림에 들어 있는 `TOKEN_ID`를 사용해 `approve`, `revise`, `reject` 중 하나로 답하세요. QA가 `revise`를 반환하면 구현으로 돌아가고, 횟수 한도를 넘기면 `needs_attention`이 됩니다. 자동 작업이 막히면 별도의 대기 메시지가 오며 `retry` 또는 `stop`으로 답합니다.
 
-전체 결과와 Artifact 경로는 대상 프로젝트에서 다음처럼 조회합니다.
+전체 결과와 Artifact 경로는 예제 저장소에서 다음처럼 조회합니다. 스크립트가 `.env`의 대상 프로젝트와 DB 경로를 읽습니다.
 
 ```bash
-./.venv/bin/workflow --db "$WORKFLOW_PROJECT_DIR/.workflow/state.db" \
-  --workdir "$WORKFLOW_PROJECT_DIR" status RUN_ID
+./scripts/status.sh RUN_ID
 ```
 
 `codex-review`는 실행 중 파일 수정을 막는 읽기 전용 sandbox를 사용합니다. QA가 실제 테스트를 실행하려면 해당 검사가 읽기 전용 환경에서 가능한 상태여야 합니다. 예제는 변경 사항을 자동 커밋하거나 원격에 푸시하지 않습니다. 실제 Slack 자격 증명과 Codex 모델을 이용한 전체 실행은 각자의 환경에서 확인해야 합니다.

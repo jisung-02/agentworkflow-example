@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 if [[ -f "$root_dir/.env" ]]; then
   set -a
   # shellcheck disable=SC1091
@@ -9,7 +9,17 @@ if [[ -f "$root_dir/.env" ]]; then
   set +a
 fi
 project_dir="${WORKFLOW_PROJECT_DIR:?Set WORKFLOW_PROJECT_DIR to the target Git repository}"
-project_dir="$(cd "$project_dir" && pwd)"
+if [[ ! -d "$project_dir" ]]; then
+  echo "Set WORKFLOW_PROJECT_DIR to an existing target Git repository in $root_dir/.env" >&2
+  exit 2
+fi
+project_dir="$(cd "$project_dir" && pwd -P)"
+case "$project_dir" in
+  "$root_dir"|"$root_dir"/*)
+    echo "WORKFLOW_PROJECT_DIR must be outside the example repository containing .env" >&2
+    exit 2
+    ;;
+esac
 database="${WORKFLOW_DB:-$project_dir/.workflow/state.db}"
 workflow_bin="$root_dir/.venv/bin/workflow"
 
