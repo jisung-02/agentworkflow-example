@@ -13,6 +13,16 @@ project_dir="$(cd "$project_dir" && pwd)"
 database="${WORKFLOW_DB:-$project_dir/.workflow/state.db}"
 workflow_bin="$root_dir/.venv/bin/workflow"
 
+if [[ -z "${WORKFLOW_ALLOWED_ACTORS:-}" ]] || \
+   [[ -z "${WORKFLOW_SLACK_SIGNING_SECRET:-}" ]] || \
+   [[ -z "${WORKFLOW_SLACK_BOT_TOKEN:-}" ]] || \
+   [[ "${WORKFLOW_ALLOWED_ACTORS:-}" == *U0123456789* ]] || \
+   [[ "${WORKFLOW_SLACK_SIGNING_SECRET:-}" == replace-* ]] || \
+   [[ "${WORKFLOW_SLACK_BOT_TOKEN:-}" == xoxb-replace-* ]]; then
+  echo "Fill in Slack values in $root_dir/.env before starting" >&2
+  exit 2
+fi
+
 if [[ ! -x "$workflow_bin" ]]; then
   echo "Install the engine in $root_dir/.venv as described in README.md" >&2
   exit 2
