@@ -1,0 +1,38 @@
+version: 1
+id: slack-smoke
+name: Slack 연결 확인
+entry: echo_request
+
+inputs:
+  request:
+    type: string
+    required: true
+
+triggers:
+  - type: manual
+
+states:
+  echo_request:
+    kind: task
+    runner: echo
+    instructions: instructions/smoke.md
+    output: received
+    outcomes: [completed]
+    on:
+      completed: approval
+
+  approval:
+    kind: wait
+    prompt: "Slack 연결 확인입니다. status RUN_ID를 확인하고 approve 또는 reject로 응답하세요."
+    outcomes: [approve, reject]
+    on:
+      approve: done
+      reject: failed
+
+  done:
+    kind: end
+    result: success
+
+  failed:
+    kind: end
+    result: failure

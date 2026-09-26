@@ -1,0 +1,5 @@
+.venv/
+.workflow/
+.env
+__pycache__/
+*.pyc
