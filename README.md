@@ -46,13 +46,12 @@ Slack 앱에 `/agentflow` slash command를 만들고 Request URL을 공개 HTTPS
 
 로컬 HTTP 서버는 `127.0.0.1:8080`에서 실행됩니다. Slack이 접근할 수 있도록 유효한 HTTPS 주소로 전달하는 터널 또는 리버스 프록시가 필요합니다. 그 주소의 `/slack/command`를 Request URL로 등록하세요.
 
-두 터미널에서 같은 환경 변수를 설정합니다. 값은 로컬에서만 보관하고 Git에 커밋하지 마세요.
+두 프로세스가 같은 설정을 읽도록 `.env` 파일을 만듭니다. 값은 로컬에서만 보관하고 Git에 커밋하지 마세요.
 
 ```bash
-export WORKFLOW_PROJECT_DIR='/absolute/path/to/your-project'
-export WORKFLOW_ALLOWED_ACTORS='slack:U0123456789'
-export WORKFLOW_SLACK_SIGNING_SECRET='your-signing-secret'
-export WORKFLOW_SLACK_BOT_TOKEN='xoxb-your-bot-token'
+cp .env.example .env
+chmod 600 .env
+# .env를 열어 프로젝트 경로, Slack 사용자 ID, Signing Secret, Bot Token을 채우세요.
 ```
 
 첫 터미널에서 `./scripts/serve.sh http`, 두 번째 터미널에서 `./scripts/serve.sh worker`를 실행합니다. `http`는 서명과 허용 사용자를 확인해 명령을 접수하고, `worker`는 SQLite에서 작업을 진행하고 대기·완료 알림을 보냅니다. 두 프로세스는 기본적으로 대상 프로젝트의 `.workflow/state.db`를 공유합니다. 다른 경로를 쓰려면 양쪽에 같은 `WORKFLOW_DB`를 설정하세요.

@@ -2,6 +2,12 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -f "$root_dir/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$root_dir/.env"
+  set +a
+fi
 project_dir="${WORKFLOW_PROJECT_DIR:?Set WORKFLOW_PROJECT_DIR to the target Git repository}"
 project_dir="$(cd "$project_dir" && pwd)"
 database="${WORKFLOW_DB:-$project_dir/.workflow/state.db}"
