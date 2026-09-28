@@ -79,7 +79,7 @@ states:
 
   qa:
     kind: task
-    runner: codex-review
+    runner: codex
     instructions: instructions/qa.md
     output: qa_report
     outcomes: [approved, revise, blocked]

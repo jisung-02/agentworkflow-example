@@ -13,13 +13,13 @@ flowchart TD
     J --> H{Slack 명세 승인}
     H -->|revise| A
     H -->|approve| I[구현]
-    I --> Q[읽기 전용 QA]
+    I --> Q[테스트 실행 QA]
     Q -->|revise| I
     Q -->|approved| D[문서화]
     D --> E[완료 알림]
 ```
 
-`slack-dev-cycle`은 Codex CLI로 구현·문서화를 수행합니다. 승인 전 명세 작성, 독립 검토, QA는 `codex-review` runner가 읽기 전용 sandbox에서 수행합니다. 그래프의 두 검토 branch는 독립 토큰과 worktree를 갖지만, 현재 기본 worker는 이를 순서대로 실행합니다. 사람의 승인과 장애 처리에는 Slack 응답이 필요합니다. 명세와 구현의 재시도 횟수는 YAML의 `max_visits`로 제한합니다.
+`slack-dev-cycle`은 Codex CLI로 구현·문서화를 수행합니다. 승인 전 명세 작성과 독립 검토는 `codex-review` runner가 읽기 전용 sandbox에서 수행합니다. QA는 테스트 실행을 위해 `codex` runner를 사용하며 지침으로 소스 변경을 금지합니다. 그래프의 두 검토 branch는 독립 토큰과 worktree를 갖지만, 현재 기본 worker는 이를 순서대로 실행합니다. 사람의 승인과 장애 처리에는 Slack 응답이 필요합니다. 명세와 구현의 재시도 횟수는 YAML의 `max_visits`로 제한합니다.
 
 병렬 검토 worktree는 대상 저장소의 커밋된 `HEAD`에서 만들어집니다. 대상 저장소에 있던 미커밋 변경은 이 두 branch에 복사되지 않습니다. 구현과 QA는 대상 프로젝트의 작업 디렉터리를 사용합니다.
 
@@ -85,7 +85,7 @@ chmod 600 .env
 ./scripts/status.sh RUN_ID
 ```
 
-`codex-review`는 실행 중 파일 수정을 막는 읽기 전용 sandbox를 사용합니다. QA가 실제 테스트를 실행하려면 해당 검사가 읽기 전용 환경에서 가능한 상태여야 합니다. 예제는 변경 사항을 자동 커밋하거나 원격에 푸시하지 않습니다. 실제 Slack 자격 증명과 Codex 모델을 이용한 전체 실행은 각자의 환경에서 확인해야 합니다.
+QA는 쓰기 가능한 sandbox에서 테스트를 실행합니다. 테스트가 임시 파일이나 빌드 캐시를 생성할 수 있으므로 QA 후 작업 디렉터리의 변경 사항을 확인하세요. `needs_attention`이 runner 오류라면 엔진 CLI의 `workflow resume RUN_ID`로 같은 실행을 재시도할 수 있습니다. 전이 횟수 초과는 `resume`으로 해제되지 않으며 정의의 방문 상한을 조정한 뒤 새 실행이 필요합니다. 예제는 변경 사항을 자동 커밋하거나 원격에 푸시하지 않습니다. 실제 Slack 자격 증명과 Codex 모델을 이용한 전체 실행은 각자의 환경에서 확인해야 합니다.
 
 ## 정의 바꾸기
 
