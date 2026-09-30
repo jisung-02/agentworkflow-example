@@ -1,0 +1,6 @@
+{
+  "name": "agentworkflow-example-host",
+  "version": "0.1.0",
+  "author": {"name": "jisung-02"},
+  "description": "Handle queued Claude Code tasks for the Slack development workflow"
+}

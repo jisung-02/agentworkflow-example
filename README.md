@@ -21,6 +21,8 @@ flowchart TD
 
 `slack-dev-cycle`은 Codex CLI로 구현·문서화를 수행합니다. 승인 전 명세 작성과 독립 검토는 `codex-review` runner가 읽기 전용 sandbox에서 수행합니다. QA는 테스트 실행을 위해 `codex-qa` runner를 사용합니다. 실행 중 Git 작업 트리가 바뀌면 결과를 `blocked`로 처리합니다. 그래프의 두 검토 branch는 독립 토큰과 worktree를 갖고 분기 시작 시점의 공통 출력만 각각 받습니다. 현재 기본 worker는 이 토큰을 순서대로 실행합니다. 사람의 승인과 장애 처리에는 Slack 응답이 필요합니다. 명세와 구현의 재시도 횟수는 YAML의 `max_visits`로 제한합니다.
 
+`slack-claude-dev-cycle`은 같은 그래프에서 명세 작성·구현·문서화를 `claude-host`로 넘기는 선택지입니다. 이 노드는 로그인된 Claude Code 세션에서 작업을 수령해야 진행됩니다. 병렬 검토는 `codex-review`, QA는 `codex-qa`가 맡으므로 이 정의에는 Codex CLI도 필요합니다. Claude 호스트 작업이 대기하면 Slack 채널에 알림이 옵니다.
+
 병렬 검토 worktree는 대상 저장소의 커밋된 `HEAD`에서 만들어집니다. 대상 저장소에 있던 미커밋 변경은 이 두 branch에 복사되지 않습니다. 구현과 QA는 대상 프로젝트의 작업 디렉터리를 사용합니다.
 
 ## 1. GitHub에서 정의 받기
@@ -35,6 +37,7 @@ uv pip install --python .venv/bin/python \
   'workflow-engine-local[channels] @ git+https://github.com/jisung-02/agentworkflow.git'
 codex login
 ./.venv/bin/workflow validate definitions/slack-dev-cycle.yaml
+./.venv/bin/workflow validate definitions/slack-claude-dev-cycle.yaml
 ./.venv/bin/workflow validate definitions/slack-smoke.yaml
 ```
 
@@ -87,9 +90,30 @@ chmod 600 .env
 
 QA는 쓰기 가능한 sandbox에서 테스트를 실행합니다. Git에서 추적 중인 파일이나 무시되지 않은 새 파일이 바뀌면 자동으로 `blocked` 처리하고 변경 사항은 확인할 수 있게 남깁니다. `needs_attention`이 runner 오류라면 엔진 CLI의 `workflow resume RUN_ID`로 같은 실행을 재시도할 수 있습니다. 전이 횟수 초과는 `resume`으로 해제되지 않으며 정의의 방문 상한을 조정한 뒤 새 실행이 필요합니다. 예제는 변경 사항을 자동 커밋하거나 원격에 푸시하지 않습니다. 실제 Slack 자격 증명과 Codex 모델을 이용한 전체 실행은 각자의 환경에서 확인해야 합니다.
 
+## 5. Claude Code 호스트 사용
+
+Claude Code에 로컬 로그인을 완료한 뒤 예제 저장소에서 `./scripts/start-claude.sh`로 실행하세요. 이 스크립트는 플러그인을 로드하고 `.env`의 대상 프로젝트를 Claude Code 작업 경로에 추가합니다. 플러그인의 `workflow` 스킬은 예제의 `scripts/claude-host.sh`를 사용하므로 Slack 서버와 동일한 `.env`, 대상 프로젝트, SQLite DB를 읽습니다. Slack에서 다음 명령으로 Claude 호스트 정의를 시작합니다.
+
+```text
+/agentflow run slack-claude-dev-cycle request="로그인 오류 메시지를 사용자에게 더 명확하게 보여줘"
+```
+
+Claude Code에 “다음 workflow 작업 처리해줘”라고 요청하면 스킬이 대기 중인 작업 하나를 수령합니다. 수령 시 반환되는 `instructions`, `inputs`, `outputs`, `workdir`, `outcomes`를 보고 작업한 다음 결과 파일과 outcome을 제출합니다. 직접 처리할 때의 명령은 다음과 같습니다.
+
+```bash
+./scripts/claude-host.sh next
+./scripts/claude-host.sh heartbeat TOKEN_ID
+./scripts/claude-host.sh complete TOKEN_ID completed /tmp/workflow-result.txt
+./scripts/claude-host.sh status RUN_ID
+./scripts/claude-host.sh resume RUN_ID
+```
+
+`complete`의 outcome은 해당 작업이 반환한 `outcomes` 중 하나여야 합니다. 작업마다 허용값이 다릅니다. 호스트 작업은 자동 실행되지 않으며, 각 Claude 노드에 도달할 때마다 Claude Code에서 다시 수령해야 합니다. Slack 승인과 중단 시의 `retry`·`stop`은 기존 `/agentflow respond`를 사용합니다. 작업이 두 시간 가까이 걸리면 heartbeat로 임대를 갱신하세요. 임대가 만료되어 `needs_attention`이 되면 파일 변경을 먼저 확인하고 `./scripts/claude-host.sh resume RUN_ID`로 재대기시킵니다.
+
 ## 정의 바꾸기
 
 - [`definitions/slack-dev-cycle.yaml`](definitions/slack-dev-cycle.yaml): 노드, 전이, 재작업 횟수
+- [`definitions/slack-claude-dev-cycle.yaml`](definitions/slack-claude-dev-cycle.yaml): Claude Code가 명세·구현·문서화를 맡는 정의
 - [`definitions/instructions/`](definitions/instructions/): 노드별 지침
 - [`definitions/slack-smoke.yaml`](definitions/slack-smoke.yaml): 외부 모델 없이 연결을 확인하는 정의
 

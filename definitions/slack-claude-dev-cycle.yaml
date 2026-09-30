@@ -1,0 +1,140 @@
+version: 1
+id: slack-claude-dev-cycle
+name: Slack 개발·검수 워크플로
+entry: draft_spec
+
+inputs:
+  request:
+    type: string
+    required: true
+
+triggers:
+  - type: manual
+
+states:
+  draft_spec:
+    kind: task
+    runner: claude-host
+    instructions: instructions/draft-spec.md
+    output: specification
+    outcomes: [completed, blocked]
+    max_visits: 2
+    on:
+      completed: parallel_review
+      blocked: spec_help
+
+  parallel_review:
+    kind: fork
+    branches:
+      risks: risk_review
+      tests: test_strategy
+    join: review_join
+
+  risk_review:
+    kind: task
+    runner: codex-review
+    instructions: instructions/risk-review.md
+    output: risks
+    outcomes: [completed, failed]
+    on:
+      completed: review_join
+      failed: review_join
+
+  test_strategy:
+    kind: task
+    runner: codex-review
+    instructions: instructions/test-strategy.md
+    output: test_strategy
+    outcomes: [completed, failed]
+    on:
+      completed: review_join
+      failed: review_join
+
+  review_join:
+    kind: join
+    policy: all_success
+    on:
+      completed: spec_approval
+      failed: spec_help
+
+  spec_approval:
+    kind: wait
+    prompt: "명세와 검토 결과를 확인하세요. status RUN_ID로 요약을 보고 approve, revise, reject 중 하나로 응답하세요."
+    outcomes: [approve, revise, reject]
+    on:
+      approve: implement
+      revise: draft_spec
+      reject: failed
+
+  implement:
+    kind: task
+    runner: claude-host
+    instructions: instructions/implement.md
+    output: implementation
+    outcomes: [completed, blocked]
+    max_visits: 3
+    on:
+      completed: qa
+      blocked: implementation_help
+
+  qa:
+    kind: task
+    runner: codex-qa
+    instructions: instructions/qa.md
+    output: qa_report
+    outcomes: [approved, revise, blocked]
+    on:
+      approved: document
+      revise: implement
+      blocked: qa_help
+
+  spec_help:
+    kind: wait
+    prompt: "명세 또는 독립 검토가 막혔습니다. status RUN_ID로 확인한 뒤 retry 또는 stop으로 응답하세요."
+    outcomes: [retry, stop]
+    on:
+      retry: draft_spec
+      stop: failed
+
+  implementation_help:
+    kind: wait
+    prompt: "구현이 막혔습니다. status RUN_ID로 확인한 뒤 retry 또는 stop으로 응답하세요."
+    outcomes: [retry, stop]
+    on:
+      retry: implement
+      stop: failed
+
+  qa_help:
+    kind: wait
+    prompt: "QA 판단이 막혔습니다. status RUN_ID로 확인한 뒤 retry 또는 stop으로 응답하세요."
+    outcomes: [retry, stop]
+    on:
+      retry: implement
+      stop: failed
+
+  documentation_help:
+    kind: wait
+    prompt: "문서화가 막혔습니다. status RUN_ID로 확인한 뒤 retry 또는 stop으로 응답하세요."
+    outcomes: [retry, stop]
+    on:
+      retry: document
+      stop: failed
+
+  document:
+    kind: task
+    runner: claude-host
+    instructions: instructions/document.md
+    output: documentation
+    outcomes: [completed, blocked]
+    max_visits: 2
+    on:
+      completed: done
+      blocked: documentation_help
+
+  done:
+    kind: end
+    result: success
+
+  failed:
+    kind: end
+    result: failure
